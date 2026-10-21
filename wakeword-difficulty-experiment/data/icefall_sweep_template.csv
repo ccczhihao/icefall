@@ -1,0 +1,7 @@
+candidate,split,threshold,tp,fp,fn,tn,negative_hours
+hey eva,dev,0.20,47,8,3,12000,20
+hey eva,dev,0.30,44,2,6,12006,20
+hey eva,test,0.20,45,7,5,11993,20
+hey eva,test,0.30,42,1,8,11999,20
+
+
