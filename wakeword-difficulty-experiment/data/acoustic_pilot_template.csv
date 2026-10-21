@@ -1,0 +1,4 @@
+candidate,speaker_id,trial_id,condition,hit,pronunciation_variant,miss_cause
+hey google,S001,1,quiet,1,standard,
+hey eva,S001,1,quiet,0,ee-vuh,hey/eva_boundary
+
