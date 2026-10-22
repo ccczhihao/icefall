@@ -46,3 +46,13 @@
 
 若 profile 只有一个，只能报告该 profile 下各词命中比例与生成波动，不能把重复 WAV 当成独立说话人或声称跨音色稳定。不同轮次若合成音频完全重复，也不能算独立样本。快速试验的边界是筛查线，样本不足时结论应为“证据不足”。
 
+## ASR 训练文本与 BPE 因素
+
+这些分数来自 GigaSpeech 训练的原始 ASR 模型，因此是声音、训练文本覆盖、子词表示和解码共同作用后的结果。它们不是纯声学可辨性测量。
+
+已查看用户提供的 `data/lang_bpe_500/tokens.txt`：直接搜索候选拼写时找到完整词首 piece `▁EVEN`，ID 为 274。这个 ID 是词表编号，不是 EVEN 在 GigaSpeech 中的出现次数；其它词没有完整单 piece 也不代表 OOV，可能会被模型拆成多个正常 piece。需要用配套 `bpe.model` 对完整短语做 SentencePiece 编码，记录 pieces 数、具体序列和是否有 UNK。工程中的 `scripts/analyze_bpe_candidates.py` 可完成该检查。
+
+语料熟悉度必须从与此模型训练对应的 GigaSpeech 正规化转录文本统计精确词频/短语频次；只凭 `tokens.txt` 或 BPE piece 数无法得到语料次数。如果训练文本不可用，应明确标为未知。
+
+分析时并列展示：Qwen WAV 的逐条 ASR 命中、profile/seed 配对、BPE 切分、训练文本词频（若能取得）和未命中音频的听辨标签。若没有逐条转写、token/关键词分数或声学 posterior，只有命中/未命中二值结果，就不能把低命中定量归因于声学、词频或 BPE 中某一项；只能提出后续可验证的假设。
+
