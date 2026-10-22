@@ -1,6 +1,0 @@
-candidate,utterance_id,speaker_id,split,label,score,duration_seconds,condition,reference,hypothesis
-hey eva,spk001_pos_001,spk001,dev,positive,0.82,2.1,quiet,hey eva,hey eva
-hey eva,spk001_neg_001,spk001,dev,negative,0.12,8.0,quiet,,hello there
-hey eva,spk101_pos_001,spk101,test,positive,0.71,2.3,noise,hey eva,hey eva
-hey eva,spk101_neg_001,spk101,test,negative,0.08,12.0,noise,,turn on the light
-
