@@ -5,11 +5,11 @@
 当前可用数据只有：
 
 1. Qwen TTS 生成的 WAV；
-2. Icefall GigaSpeech 原始 ASR 模型对这些 WAV 的输出，以及你按当前规则标注的命中 / 未命中。
+2. Icefall KWS 流程对这些 WAV 的逐条唤醒 / 未唤醒结果。该 KWS 流程使用的是 GigaSpeech 原始 ASR 训练模型，未做 KWS 增训。
 
-这里把“命中”定义为 **音频里确实合成了目标短语，且 Icefall 原始 ASR 转写按固定规则识别出该短语**。这测的是 ASR 输出命中，不是独立 KWS 检测器是否触发。建议规则为：对识别文本做统一大小写/标点正规化后，完整匹配预先指定的唤醒短语；Google 和候选使用完全相同的规则。若你当前已有唤醒/未唤醒目录，先确认它们确实按这条同一规则分类。目录若包含没有目标短语的普通语音，也不要混入这组正例漏识别统计。
+这里的“命中”是 **Icefall KWS 系统对目标关键词报告唤醒/触发**；“未命中”是该 KWS 系统没有报告唤醒。模型来源是 GigaSpeech 上训练的原始 ASR 模型，但当前任务与评估指标仍然是 KWS。不要把命中定义为 ASR 转写文本的 exact match。
 
-本流程不要求真人录音，也不要求重新训练模型。目标是用同一批 Qwen 合成配置、同一个 Icefall GigaSpeech 原始 ASR 模型及相同解码参数，比较新词与 `hey google` 对照的输出命中情况，并检查未命中 WAV 有哪些可观察差异。由于原始 ASR 还会受到训练文本覆盖、BPE 切分、声学模型和解码过程共同影响，现有二分类结果不是纯声学难度分数。结论只适用于本批 Qwen TTS 音频与当前 Icefall ASR 配置。
+本流程不要求真人录音，也不要求重新训练模型。目标是用同一批 Qwen 合成配置、同一个 Icefall KWS 流程（原始 GigaSpeech ASR 模型、未做 KWS 增训）及相同 KWS 参数，比较新词与 `hey google` 对照的触发情况，并检查未唤醒 WAV 的可观察差异。结论只适用于本批 Qwen TTS 音频与当前 Icefall ASR 配置。
 
 ## 当前已报告分数
 
@@ -24,23 +24,23 @@
 | hey neva | 0.758 | -17.8 个百分点 |
 | hey kiva | 0.664 | -27.2 个百分点 |
 
-这是原始 ASR 测试的观察分数记录，不应直接称作独立 KWS 触发率。当前没有每个分数的 WAV 数、Qwen profile/seed、逐条输出和分数定义，因此不能从表中算置信区间，也不能断言音素因果。Eva 与 Neva 仅差 0.2pp，Kiva 比 Eva 低 9.2pp；这表明“元音起始一定差、辅音起始一定好”不是可靠的单一规则。后续需要同时记录文本/词表因素与逐条 WAV 命中结果。
+这些是你报告的 KWS 唤醒结果分数；评测模型使用原始 ASR 训练模型，未做 KWS 增训。当前没有每个分数的 WAV 数、Qwen profile/seed、逐条输出和分数定义，因此不能从表中算置信区间，也不能断言音素因果。Eva 与 Neva 仅差 0.2pp，Kiva 比 Eva 低 9.2pp；这表明“元音起始一定差、辅音起始一定好”不是可靠的单一规则。后续需要同时记录文本/词表因素与逐条 WAV 命中结果。
 
 ## 实验要回答的问题
 
 对一个新短语（例：`hey eva`），在当前 Qwen TTS 生成分布和固定 Icefall 原始 ASR 参数下：
 
-- 该词的合成 WAV 有多少比例被 ASR 按统一规则正确识别？
+- 该词的合成 WAV 有多少比例被 KWS 系统报告唤醒？
 - 同一 Qwen 音色配置、同一生成轮次下，它比 `hey google` 对照低多少？
 - 漏唤醒音频是否集中在少数 profile/生成轮次，或有可复查的时长、电平、发音/边界差异？
 - 当前结果够不够做初筛，还是需要更多合成样本？
-- 低命中是否同时伴随更碎的 BPE 切分或较低的 GigaSpeech 训练文本词频？
+- 低 KWS 命中是否同时伴随更碎的 BPE 切分或较低的 GigaSpeech 训练文本词频？
 
 ## 必须分开的三类影响因素
 
-同一个原始 ASR 输出同时包含声学模型和文本/解码影响。做报告时并列记录以下信息，不把它们合成“纯声学难度”：
+虽然当前评测是 KWS，底层模型由 ASR 任务训练而来，模型表示、BPE 目标编码及 KWS 解码配置都可能影响结果。做报告时并列记录以下信息，不把它们合成“纯声学难度”：
 
-1. **合成音频与声学实现**：每条 WAV 的 Qwen profile/seed、实际读音、时长、电平和 Icefall 是否识别命中。成功与失败样本需要按相同 profile 配对回听。
+1. **合成音频与声学实现**：每条 WAV 的 Qwen profile/seed、实际读音、时长、电平和 Icefall KWS 是否触发。成功与失败样本需要按相同 profile 配对回听。
 2. **BPE 词表覆盖**：使用随模型提供的 `bpe.model` 对完整短语编码，记录 token pieces、piece 数、UNK 数。用户提供的 `tokens.txt` 中，直接检索已看到 `▁EVEN 274` 这一整词 piece；其他词即使没有整词 piece，也可能由多个子词正常表示，需用模型实际编码后判断。
 3. **GigaSpeech 训练文本熟悉度**：只有拿到与原模型训练相对应的文本转录，按相同文本正规化后统计目标词/短语出现次数，才能估计语料词频。`tokens.txt` 的 token ID 不是词频；BPE piece 数也只是分词覆盖信息，不是语料出现次数。
 
@@ -52,7 +52,7 @@ python scripts/analyze_bpe_candidates.py --model "<bundle>/data/lang_bpe_500/bpe
 
 如果环境没有 Python `sentencepiece` 包，可用官方 `spm_encode` 命令对同一组大写/规范化文本输出 piece 序列；命令行编码方式见 [SentencePiece CLI 文档](https://github.com/google/sentencepiece/blob/master/doc/cli.md)。文本大小写/正规化必须跟 Icefall 测试文本一致。当前工作机未安装 SentencePiece Python 包，因此没有声称已得出除 `▁EVEN 274` 之外的实际切分结果。
 
-解释结果时：若同一词在多个 Qwen profile/seed 下都难命中，且该词 BPE 切分更碎或训练文本次数明显少，可说“声学合成和 ASR 文本先验都可能有关”，但仍不能只靠相关性断定主因。要进一步分离声学模型与解码偏好，需要保留 Icefall 的逐条转写、token/关键词分数或声学 posterior；如果现在只有命中/未命中标签，原因结论必须写成待验证。
+解释结果时：若同一词在多个 Qwen profile/seed 下都难命中，且该词 BPE 切分更碎或训练文本次数明显少，可说“Qwen 声学实现、ASR 训练所得模型表示、BPE 与 KWS 解码设置都可能相关”，但仍不能只靠相关性断定主因。要进一步分离声学模型与解码偏好，需要保留 Icefall 的逐条转写、token/关键词分数或声学 posterior；如果现在只有命中/未命中标签，原因结论必须写成待验证。
 
 ## 先准备一份输入清单
 
@@ -77,7 +77,7 @@ Q001_eva_R01_seed101.wav
 
 如果现有文件名没有这些信息，不要猜：先在清单里按文件路径逐条补录能确认的内容，未知值写 `unknown`。特别需要区分 Qwen 音色配置；同一音色生成 20 个文件仍是一个 profile，不是 20 个独立 profile。
 
-建立 `data/trials.csv`，每条 WAV 一行；模板只有表头，复制后逐条填写。`hit` 填原始 ASR 转写是否命中完整唤醒短语，不是凭波形主观打分。字段说明：
+建立 `data/trials.csv`，每条 WAV 一行；模板只有表头，复制后逐条填写。`hit` 填原始 Icefall KWS 是否触发：1=唤醒，0=未唤醒。字段说明：
 
 | 字段 | 填什么 | 示例 |
 |---|---|---|
@@ -97,7 +97,7 @@ hey google,Q001,1,clean,1,standard,
 hey eva,Q001,1,clean,0,ee-vuh,hey_target_boundary
 ```
 
-ASR 转写经固定正规化后完整匹配目标短语，记 `hit=1`；没有匹配、漏掉目标词或识别成别的词，记 `hit=0`。如果你现有目录是由其他既定规则产生的二分类，就记录该规则并对全部候选保持一致，不要混用“ASR exact match”和“KWS 触发事件”两种标签。
+Icefall KWS 报告唤醒记 `hit=1`，未报告唤醒记 `hit=0`。对所有候选使用相同的 KWS 流程和判定/导出规则；不要从 ASR 转写是否包含短语重新定义标签。
 
 ## 逐步执行
 
@@ -123,7 +123,7 @@ ASR 转写经固定正规化后完整匹配目标短语，记 `hit=1`；没有�
 4. 如 Qwen 的输出确定性很强，确认不同轮次不是同一个音频的拷贝。完全重复的文件不能当作独立重复。保留 profile、seed、轮次和原始生成文件名。
 5. 先用 clean 语音比较。要测噪声时，把完全相同的噪声处理施加到每个词，并单独标记条件；不要只处理候选。
 
-### 第 3 步：检查 WAV 和 ASR 输出标签
+### 第 3 步：检查 WAV 和 Icefall KWS 输出标签
 
 运行 WAV 质量清单工具：
 
@@ -133,11 +133,11 @@ python scripts/inspect_wavs.py /path/to/wav_root --out wav_manifest.csv
 
 检查输出中的时长、采样率、声道、RMS、峰值和削波。它只发现文件质量差异，不判断唤醒难度。若候选文件普遍比 Google 短很多、电平极低或有大量削波，先确认这是 Qwen 生成差异还是文件处理问题；不要静默删掉失败文件。只对两边使用同一套事先定义的损坏文件处理规则。
 
-随后逐一核对 Icefall 结果：每个 WAV 对应的 hit 是否符合既定转写匹配规则。目录标签与原始 ASR 转写冲突时，保留冲突并查明是匹配规则、文件对应还是输出导出有误，不要凭目录名强行覆盖。
+随后逐一核对 Icefall 结果：每个 WAV 的 hit 是否对应 Icefall KWS 对该文件的唤醒/未唤醒结果。若目录标签与 KWS 日志冲突，保留冲突并查明文件对应或导出错误，不要凭目录名覆盖。
 
 ### 第 4 步：建立一行一条 WAV 的 CSV
 
-把 Qwen 任务清单、文件路径和 Icefall 逐文件 ASR 命中结果合成 `data/trials.csv`。需要逐条填写，不要只填每个词一个汇总分数。模板只包含必需列。如果原始日志里另有 Icefall 分数、转写文本或时间信息，可以加为额外列保存，但不是分析脚本的必需输入。
+把 Qwen 任务清单、文件路径和 Icefall 逐文件 KWS 触发结果合成 `data/trials.csv`。需要逐条填写，不要只填每个词一个汇总分数。模板只包含必需列。如果原始日志里另有 Icefall 分数、转写文本或时间信息，可以加为额外列保存，但不是分析脚本的必需输入。
 
 快速检查：
 
@@ -208,7 +208,7 @@ python scripts/analyze_bpe_candidates.py --model "<bundle>/data/lang_bpe_500/bpe
 
 ### 第 10 步：把因素并列表，不做越界归因
 
-每个候选最终形成一行：本轮 ASR 命中率、相对同轮 Google 的差、Qwen profile/seed 覆盖、BPE piece 数/UNK、GigaSpeech 训练文本词频（有数据才填）、未命中 WAV 的回听标签。可用 `data/factor_analysis_template.csv` 汇总这些项目。ASR 输出同时受到声音和文本/解码因素影响；如果只保存了命中/未命中二值结果，没有逐条转写、模型分数或 posterior，就无法定量拆出各因素的独立贡献。报告应写“与低命中同时观察到”，不要写“由 BPE/低频/元音边界导致”。
+每个候选最终形成一行：本轮 KWS 命中率、相对同轮 Google 的差、Qwen profile/seed 覆盖、BPE piece 数/UNK、GigaSpeech 训练文本词频（有数据才填）、未命中 WAV 的回听标签。可用 `data/factor_analysis_template.csv` 汇总这些项目。KWS 输出来自 ASR 训练模型并受声音、训练文本/BPE 表示及 KWS 解码配置共同影响；如果只保存了命中/未命中二值结果，没有逐条转写、模型分数或 posterior，就无法定量拆出各因素的独立贡献。报告应写“与低命中同时观察到”，不要写“由 BPE/低频/元音边界导致”。
 
 ## 参考文件
 
