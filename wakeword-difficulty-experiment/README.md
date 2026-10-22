@@ -254,4 +254,91 @@ python scripts/evaluate_fixed_wake.py data/trials.csv --control "hey google" --b
 
 把 `candidate` 从 `hey eva` 改成新短语；增加该词的标准发音及盲读记录；保留同一 Google 对照、采集顺序规则、命中定义、阈值和分析命令。不要复用上一轮 Google 的历史录音来代替同轮配对对照。WAV 与真实逐条输出可一直留在你的服务器，GitHub 只保存脚本、模板和不含隐私的汇总结果。
 
+## 仅使用 Qwen TTS 时的具体执行版本
+
+你当前不能录真人音频，因此本节是上面“说话人/录音”步骤的替代执行方式。此实验的统计单位是 **独立 TTS 音色配置（profile）**，不是人；结论只说明模型对这些合成语音的表现，不能直接推断真人用户的唤醒率。你之前的 hey google=0.936 不能替代本轮合成的 Google 对照。
+
+### A. 先锁定生成配置
+
+建立一份配置记录，Google 和新词共用同一设置：
+
+```text
+Qwen TTS checkpoint / API version:
+voice or speaker profile ID:
+reference voice prompt (if any):
+language / instruction / emotion:
+speed / pitch / sampling settings:
+seed list:
+output sample rate / channels:
+wake model checkpoint / threshold / window / VAD:
+trigger deadline:
+```
+
+实验中唯一有意改变的是目标词文本。不要给新词单独指定更清晰的语气、更慢语速或不同情绪。`Hey Google.` 与 `Hey Eva.` 使用完全相同的文本模板、大小写和标点，只替换目标词。如果应用实际使用的短语格式不同，照着应用格式生成并在整批中固定下来。
+
+### B. 准备 profile × seed 配对表
+
+快速筛查目标是 12–15 个不同的 Qwen 音色/说话人 profile，每个 profile 下 Google 与候选各生成 5 次，总计每个词 60–75 条 WAV。每一个 profile、每个生成轮次都要有一对音频（一个 Google、一个候选）。若只有一个 profile，可以先生成每词 20–30 个独立版本，观察该音色下的初步结果；但不能把这些版本称为 20–30 个说话人，也不能据此声称跨音色泛化。若 Qwen 的生成完全确定，重复相同设置可能得到重复波形；重复文件不算独立样本，应检查波形哈希/文件内容或试听确认确实有不同实现。
+
+任务表建议包含：`tts_profile_id,candidate,trial_id,seed,condition,pronunciation_variant`。`condition` 初轮填 `clean`。示例：
+
+```csv
+tts_profile_id,candidate,trial_id,seed,condition,pronunciation_variant
+Q001,hey google,1,101,clean,standard
+Q001,hey eva,1,101,clean,ee-vuh
+Q001,hey google,2,202,clean,standard
+Q001,hey eva,2,202,clean,ee-vuh
+Q002,hey google,1,101,clean,standard
+Q002,hey eva,1,101,clean,ee-vuh
+```
+
+如 Qwen 支持随机 seed，预先固定 seed 列表；同一 profile 的 Google 与候选尽量配对使用同一 seed 序号，并让不同重复使用不同 seed。Seed 配对仅帮助控制生成设置，不代表两个生成波形有相同的音素实现。若需测噪声/房间条件，先用 clean 音频生成，再对 Google 和候选施加完全相同且预先固定的噪声处理；每种条件都平衡数量，单独报告。
+
+### C. 批量生成、命名并质检
+
+一次任务生成一个短语、一条 WAV；不要把多次重复拼在一个文件。建议命名：
+
+```text
+Q001_google_R01_seed101_clean.wav
+Q001_eva_R01_seed101_clean.wav
+Q001_google_R02_seed202_clean.wav
+Q001_eva_R02_seed202_clean.wav
+```
+
+逐条确认实际生成内容、发音和文件可播放。若发现合成器漏词、读错目标词、文件空白/损坏，标记该条并按同设置重生成，Google 与候选都使用相同质检规则。运行：
+
+```bash
+python scripts/inspect_wavs.py /path/to/generated_wavs --out wav_manifest.csv
+```
+
+核对采样率、声道、时长、电平和削波。该脚本只做 QC，不评估发音自然度或唤醒难度。不要因为候选听起来不理想就只挑选 Google/候选中较好的生成版本；预先定义并对两者一致地处理无效音频。
+
+### D. 用同一唤醒器逐文件评分
+
+把所有生成的 WAV 文件名随机打乱后，逐条送入实际唤醒链路。模型、关键词配置方式、阈值、窗口、VAD、前处理及后处理保持一致。开始前确定 `trigger deadline`：若系统已有部署时限就照用；没有的话先选一个固定时限并写入配置，对 Google 和候选都使用它。每个 WAV 导出一行结果：文件名、命中的词、触发时间、原始分数（如可获得）、`hit`。只有在时限内正确触发目标才记 `hit=1`；未触发、触发错词或超时都记 `hit=0`，错误事件在备注中保留。
+
+### E. 合并并分析
+
+将 Qwen 任务清单与检测输出按文件名合并成 `data/trials.csv`。模板中 `speaker_id` 字段填 `tts_profile_id`（例如 Q001）；每个 profile 都必须同时有 Google 与候选。删除模板示例行后再放真实结果。每行代表一个 WAV，CSV 至少包含：
+
+```csv
+candidate,speaker_id,trial_id,condition,hit,pronunciation_variant,miss_cause
+hey google,Q001,1,clean,1,standard,
+hey eva,Q001,1,clean,0,ee-vuh,hey/eva_boundary
+```
+
+运行：
+
+```bash
+python scripts/evaluate_fixed_wake.py data/trials.csv --control "hey google" --bootstrap 5000 --seed 2026 --out hey-eva-pilot.json
+```
+
+在输出中把 `speaker_id` 理解为 TTS profile：`hit_rate` 是所有合成 WAV 的命中比例；`speaker_mean_hit_rate` 是各 profile 等权的平均命中率；`paired_vs_control.mean_difference` 是候选减 Google 的同 profile 差值，`-0.10` 表示低 10 个百分点；`bootstrap_95` 是按 profile 重抽样的区间。12–15 个 profile 仍是小规模筛选，置信区间可能较宽。
+
+如果只有一个 Qwen 音色，不要给每个 seed 编造不同 `speaker_id` 来伪装 profile。此时可报告该音色下各词命中次数/总次数和不同生成轮次的波动；脚本会显示共同 profile 数不足，不给绿/红结论。想要按 profile 做有意义的 bootstrap，必须有多个真正独立的音色配置。
+
+### F. 结论适用范围
+
+如果 Eva 在多种 Qwen 音色下都低于同轮 Google，且漏检位置在多个 profile 中重复，说明该候选在**当前 Qwen TTS 合成分布 + 当前唤醒器**上有稳定风险，值得淘汰或做针对性训练。它仍不能单独证明真实人声也会有同样差距，因为 TTS 可能产生不自然但稳定的音段、停顿或韵律。工程报告要明确写“Qwen TTS 合成音频试验”；后续若能取得真人录音，应作为外部验证集，而不是与本次合成数据混在一起。
+
 
