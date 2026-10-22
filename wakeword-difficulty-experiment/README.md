@@ -135,7 +135,6 @@ python scripts/analyze_bpe_candidates.py --model "<bundle>/data/lang_bpe_500/bpe
 - `scripts/summarize_kws_folders.py`：按目录标签自动统计 KWS 命中率和 WAV 声学描述量。
 - `scripts/inspect_wavs.py`：单独导出 WAV 元数据清单（可选）。
 - `scripts/analyze_bpe_candidates.py`：用 SentencePiece 模型检查候选 token 序列（可选）。
-- `data/factor_analysis_template.csv`：若需要手工汇总多次实验才使用；快速流程不依赖该表。
 
 Icefall 的 GigaSpeech KWS 解码脚本可参考：<https://github.com/k2-fsa/icefall/blob/master/egs/gigaspeech/KWS/run.sh>。
 
