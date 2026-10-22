@@ -208,7 +208,7 @@ python scripts/analyze_bpe_candidates.py --model "<bundle>/data/lang_bpe_500/bpe
 
 ### 第 10 步：把因素并列表，不做越界归因
 
-每个候选最终形成一行：本轮 ASR 命中率、相对同轮 Google 的差、Qwen profile/seed 覆盖、BPE piece 数/UNK、GigaSpeech 训练文本词频（有数据才填）、未命中 WAV 的回听标签。ASR 输出同时受到声音和文本/解码因素影响；如果只保存了命中/未命中二值结果，没有逐条转写、模型分数或 posterior，就无法定量拆出各因素的独立贡献。报告应写“与低命中同时观察到”，不要写“由 BPE/低频/元音边界导致”。
+每个候选最终形成一行：本轮 ASR 命中率、相对同轮 Google 的差、Qwen profile/seed 覆盖、BPE piece 数/UNK、GigaSpeech 训练文本词频（有数据才填）、未命中 WAV 的回听标签。可用 `data/factor_analysis_template.csv` 汇总这些项目。ASR 输出同时受到声音和文本/解码因素影响；如果只保存了命中/未命中二值结果，没有逐条转写、模型分数或 posterior，就无法定量拆出各因素的独立贡献。报告应写“与低命中同时观察到”，不要写“由 BPE/低频/元音边界导致”。
 
 ## 参考文件
 
@@ -216,5 +216,6 @@ python scripts/analyze_bpe_candidates.py --model "<bundle>/data/lang_bpe_500/bpe
 - `scripts/inspect_wavs.py`：生成 WAV 元数据/响度 QC 清单。
 - `scripts/analyze_bpe_candidates.py`：使用 SentencePiece 模型导出候选词的实际 BPE pieces/IDs/UNK 状态（运行环境需安装 `sentencepiece`）。
 - `data/acoustic_pilot_template.csv`：逐 WAV 标签空模板。
+- `data/factor_analysis_template.csv`：逐候选汇总命中、profile、BPE 和语料频次的空模板。
 - Icefall GigaSpeech KWS 解码配置：<https://github.com/k2-fsa/icefall/blob/master/egs/gigaspeech/KWS/run.sh>
 
