@@ -34,6 +34,7 @@
 - 同一 Qwen 音色配置、同一生成轮次下，它比 `hey google` 对照低多少？
 - 漏唤醒音频是否集中在少数 profile/生成轮次，或有可复查的时长、电平、发音/边界差异？
 - 当前结果够不够做初筛，还是需要更多合成样本？
+- 低命中是否同时伴随更碎的 BPE 切分或较低的 GigaSpeech 训练文本词频？
 
 ## 必须分开的三类影响因素
 
@@ -46,7 +47,7 @@
 可在包含 SentencePiece 的 Icefall 环境运行：
 
 ```bash
-python scripts/analyze_bpe_candidates.py --model "<bundle>/data/lang_bpe_500/bpe.model" --tokens "<bundle>/data/lang_bpe_500/tokens.txt" --phrases "hey google" "hey tesla" "hey siri" "hey eva" "hey even" "hey ixio" "hey neva" "hey kiva" --out bpe-candidates.json
+python scripts/analyze_bpe_candidates.py --model "<bundle>/data/lang_bpe_500/bpe.model" --tokens "<bundle>/data/lang_bpe_500/tokens.txt" --phrases "google" "tesla" "siri" "eva" "even" "ixio" "neva" "kiva" "hey google" "hey eva" "hey even" "hey ixio" --out bpe-candidates.json
 ```
 
 如果环境没有 Python `sentencepiece` 包，可用官方 `spm_encode` 命令对同一组大写/规范化文本输出 piece 序列；命令行编码方式见 [SentencePiece CLI 文档](https://github.com/google/sentencepiece/blob/master/doc/cli.md)。文本大小写/正规化必须跟 Icefall 测试文本一致。当前工作机未安装 SentencePiece Python 包，因此没有声称已得出除 `▁EVEN 274` 之外的实际切分结果。
@@ -136,7 +137,7 @@ python scripts/inspect_wavs.py /path/to/wav_root --out wav_manifest.csv
 
 ### 第 4 步：建立一行一条 WAV 的 CSV
 
-把 Qwen 任务清单、文件路径和 Icefall 逐文件唤醒结果合成 `data/trials.csv`。需要逐条填写，不要只填每个词一个汇总分数。模板已包含 `file`、`seed`、`icefall_score`、`trigger_time_ms` 列，方便回查；分析脚本会读取模板中的核心列。
+把 Qwen 任务清单、文件路径和 Icefall 逐文件 ASR 命中结果合成 `data/trials.csv`。需要逐条填写，不要只填每个词一个汇总分数。模板只包含必需列。如果原始日志里另有 Icefall 分数、转写文本或时间信息，可以加为额外列保存，但不是分析脚本的必需输入。
 
 快速检查：
 
@@ -174,7 +175,7 @@ python scripts/evaluate_fixed_wake.py data/trials.csv --control "hey google" --b
 - `hey` 结尾到目标词开头是否连在一起；
 - 未唤醒样本与成功样本相比，差别是否反复出现在目标首音、词中或尾音；
 - 是否存在异常停顿、目标音节缺失、语速变化或文件截断；
-- Icefall 触发时间是否系统性偏晚（若日志有时间戳）。
+- Icefall 原始转写是否有稳定的替换、删除或插入模式（若保留了逐条转写文本/错误日志）。
 
 把漏唤醒原因填进 `miss_cause`，用固定标签如 `hey_target_boundary`、`target_onset`、`medial_sound`、`word_final`、`pronunciation_variant`、`truncation`、`uncertain`。不要只挑一个符合预期的失败例子；统计所有失败 WAV，命中 WAV 也抽样复核。WAV 时长、RMS 或主观听感只能帮助找线索，不能单独证明因果。
 
