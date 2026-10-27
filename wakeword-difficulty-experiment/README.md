@@ -2,13 +2,13 @@
 
 ## 五个词增训后的观察
 
-你报告 Kiva/Neva/Ixio/Even/Eva 增训后命中率分别为 0.890/0.907/0.897/0.642/0.837。相较原始模型，分别提升 22.6/14.9/56.6/8.9/8.1 个百分点。Ixio 的大幅恢复表明原始模型低分不能直接当作词语固有声学难度；当前增训结果中 Even 最低，值得优先检查训练覆盖和独立测试表现。详细差值、解释边界及下一步检查见 [候选词结果分析](candidate-analysis.md#五个候选词增训后的结果)。
+你报告 Kiva/Neva/Ixio/Even/Eva 增训后命中率分别为 0.890/0.907/0.897/0.642/0.837。相较原始模型，分别提升 22.6/14.9/56.6/8.9/8.1 个百分点。Ixio 的大幅恢复表明原始模型低分不能直接当作词语固有声学难度；当前增训结果中 Even 最低，值得优先检查训练覆盖和独立测试表现。五词逐词分析和可复现实验见 [五词增训分析](five-word-finetuning-analysis.md)；[候选词结果分析](candidate-analysis.md#五个候选词增训后的结果)保留简要记录。
 
 该解释假设两轮结果的测试集、KWS 命中定义和阈值策略可比；请报告每词命中数/测试数，并确认测试 WAV 未参与增训。若只测了含关键词音频，这些分数应称为命中率/召回率，不包含误唤醒表现。
 
 ## 实验对象与目标
 
-这是 **KWS（关键词唤醒）评测**：使用 Icefall 的 GigaSpeech 原始 ASR 训练模型作为当前 KWS 流程中的模型，**没有做 KWS 增训**。`wake` / `no_wake` 是 Icefall KWS 对每条 WAV 给出的触发结果。命中率的定义是 KWS 触发数除以该候选的 WAV 总数；不是 ASR 转写文本是否包含目标短语。
+这是 **KWS（关键词唤醒）评测**：增训前使用 Icefall 的 GigaSpeech 原始 ASR 训练模型做 KWS；目前另有五个词的 KWS 增训后结果。`wake` / `no_wake` 是 Icefall KWS 对每条 WAV 给出的触发结果。命中率的定义是 KWS 触发数除以该候选的 WAV 总数；不是 ASR 转写文本是否包含目标短语。
 
 你已经逐条听过这些 WAV，并确认目标词发音没有问题。因此本流程不把 Qwen 合成质量、发音变体或听辨任务列为解释因素，也不要求你逐条填写 profile、seed、发音或 miss cause。音频只用于自动提取少量客观波形特征，与 KWS 命中/未命中结果做描述性比较。
 
@@ -19,7 +19,7 @@
 
 此外，BPE 切分和 GigaSpeech 训练文本出现次数作为模型侧的背景信息单独记录。它们不能替代 KWS 触发率，也不能单凭相关性说明声学原因。
 
-## 已有结果
+## 原始模型结果
 
 | 短语 | 用户报告分数 | 相对 hey google |
 |---|---:|---:|
@@ -139,6 +139,7 @@ python scripts/analyze_bpe_candidates.py --model "<bundle>/data/lang_bpe_500/bpe
 ## 工程文件
 
 - `scripts/summarize_kws_folders.py`：按目录标签自动统计 KWS 命中率和 WAV 声学描述量。
+- `scripts/compare_kws_before_after.py`：按同一 WAV 的增训前后 KWS 决策统计转移表。
 - `scripts/inspect_wavs.py`：单独导出 WAV 元数据清单（可选）。
 - `scripts/analyze_bpe_candidates.py`：用 SentencePiece 模型检查候选 token 序列（可选）。
 
