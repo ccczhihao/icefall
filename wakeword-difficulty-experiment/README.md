@@ -1,10 +1,10 @@
 # Icefall KWS 唤醒词难度筛查
 
-## 五个词增训后的观察
+## 五个词增训后的配对结果
 
-你报告 Kiva/Neva/Ixio/Even/Eva 增训后命中率分别为 0.890/0.907/0.897/0.642/0.837。相较原始模型，分别提升 22.6/14.9/56.6/8.9/8.1 个百分点。Ixio 的大幅恢复表明原始模型低分不能直接当作词语固有声学难度；当前增训结果中 Even 最低，值得优先检查训练覆盖和独立测试表现。五词逐词分析和可复现实验见 [五词增训分析](five-word-finetuning-analysis.md)；[候选词结果分析](candidate-analysis.md#五个候选词增训后的结果)保留简要记录。
+你提供了每词总量、增训前/后唤醒数量、回归和新唤醒数量。按配对计数重算，增训后命中率为 Ixio 88.66%、Kiva 88.36%、Neva 90.15%、Eva 81.51%、Even 64.43%；净提升分别为 +55.54、+22.01、+14.33、+6.41、+11.48 个百分点。Even 有 334 条新唤醒，也有 170 条回归（原命中样本的 22.49%），是下一步优先排查对象。完整转移表与具体计划见 [五词配对结果与下一步计划](paired-results-five-keywords.md)。
 
-该解释假设两轮结果的测试集、KWS 命中定义和阈值策略可比；请报告每词命中数/测试数，并确认测试 WAV 未参与增训。若只测了含关键词音频，这些分数应称为命中率/召回率，不包含误唤醒表现。
+
 
 ## 实验对象与目标
 
@@ -26,13 +26,13 @@
 | hey google | 0.936 | — |
 | hey tesla | 0.895 | -4.1 个百分点 |
 | hey siri | 0.865 | -7.1 个百分点 |
-| hey eva | 0.756 | -18.0 个百分点 |
-| hey even | 0.553 | -38.3 个百分点 |
+| hey eva | 0.751 | -18.5 个百分点 |
+| hey even | 0.529 | -40.7 个百分点 |
 | hey ixio | 0.331 | -60.5 个百分点 |
 | hey neva | 0.758 | -17.8 个百分点 |
 | hey kiva | 0.664 | -27.2 个百分点 |
 
-以上按你提供的 Icefall KWS 结果理解。由于暂缺各词 WAV 数和逐条标签，不能从这些汇总分数重算区间或判断显著性。Eva/Neva 接近、Kiva 低于 Eva，说明仅用“词首是元音还是辅音”无法可靠筛词；新候选应经过同配置 KWS 实测。
+以上按你提供的 Icefall KWS 结果理解。由于暂缺各词 WAV 数和逐条标签，不能从这些汇总分数重算区间或判断显著性。这些五词比例根据本轮总量和增训前命中数重新计算，覆盖此前的粗略小数报告。增训后分数及新唤醒/回归转移详见配对分析文档。
 
 ## 最少操作版：只整理目录，然后运行一个脚本
 
@@ -140,6 +140,7 @@ python scripts/analyze_bpe_candidates.py --model "<bundle>/data/lang_bpe_500/bpe
 
 - `scripts/summarize_kws_folders.py`：按目录标签自动统计 KWS 命中率和 WAV 声学描述量。
 - `scripts/compare_kws_before_after.py`：按同一 WAV 的增训前后 KWS 决策统计转移表。
+- `paired-results-five-keywords.md`：五词配对计数、分析与下一步计划。
 - `scripts/inspect_wavs.py`：单独导出 WAV 元数据清单（可选）。
 - `scripts/analyze_bpe_candidates.py`：用 SentencePiece 模型检查候选 token 序列（可选）。
 
